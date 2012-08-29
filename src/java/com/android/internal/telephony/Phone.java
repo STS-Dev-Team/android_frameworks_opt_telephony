@@ -1,4 +1,5 @@
 /*
+/*
  * Copyright (C) 2007 The Android Open Source Project
  * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
@@ -1182,6 +1183,26 @@ public interface Phone {
      * @param h Handler to be removed from the registrant list.
      */
     void unSetOnUnsolOemHookExtApp(Handler h);
+
+    /**
+     * OEMRIL_ENHANCEMENT
+     * Subscribes the Handler for OEM unsolicited messages from the modem.
+     *
+     * @param h: Handler to be invoked on event.
+     * @param what: Messge ID to be assigned to the Message object sent to the handler.
+     * @param obj: User-defined object to be sent to the handler as a part of event.
+     *        ((AsyncResult)Message.obj).userObj will contain this object.
+     */
+    void setOnUnsolOemHookRaw(Handler h, int what, Object obj);
+
+    /**
+     * OEMRIL_ENHANCEMENT
+     * Unsubscribes the Handler from OEM unsolicited messages.
+     *
+     * @param h: Subscriber identification. Should be the same as it was in
+     *           the setOnUnsolOemHookRaw call.
+     */
+    void unSetOnUnsolOemHookRaw(Handler h);
 
     /**
      * Get the current active Data Call list
