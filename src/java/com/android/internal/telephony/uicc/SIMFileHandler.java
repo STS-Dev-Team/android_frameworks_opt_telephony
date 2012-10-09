@@ -17,15 +17,19 @@
 package com.android.internal.telephony.uicc;
 
 import android.os.Message;
+import android.os.SystemProperties;
 import android.util.Log;
 
 import com.android.internal.telephony.CommandsInterface;
+import com.android.internal.telephony.TelephonyProperties;
 
 /**
  * {@hide}
  */
 public final class SIMFileHandler extends IccFileHandler implements IccConstants {
     static final String LOG_TAG = "GSM";
+
+    private boolean mMotoOEM = SystemProperties.getBoolean(TelephonyProperties.PROPERTY_MOTO_OEM, true);
 
     //***** Instance Variables
 
@@ -41,33 +45,67 @@ public final class SIMFileHandler extends IccFileHandler implements IccConstants
     protected String getEFPath(int efid) {
         // TODO(): DF_GSM can be 7F20 or 7F21 to handle backward compatibility.
         // Implement this after discussion with OEMs.
-        switch(efid) {
-        case EF_FDN:
-        case EF_MSISDN:
-        case EF_SMS:
-            return MF_SIM + DF_TELECOM;
+        if (mMotoOEM) {
+            switch(efid) {
+            case EF_CSIM_SF_EUIMID:
+                return MF_SIM + DF_ADFISIM;
 
-        case EF_EXT6:
-        case EF_MWIS:
-        case EF_MBI:
-        case EF_SPN:
-        case EF_AD:
-        case EF_MBDN:
-        case EF_OPL:
-        case EF_PNN:
-        case EF_SPDI:
-        case EF_SST:
-        case EF_CFIS:
-            return MF_SIM + DF_GSM;
+            case EF_FDN:
+            case EF_MSISDN:
+            case EF_SMS:
+                return MF_SIM + DF_TELECOM;
 
-        case EF_MAILBOX_CPHS:
-        case EF_VOICE_MAIL_INDICATOR_CPHS:
-        case EF_CFF_CPHS:
-        case EF_SPN_CPHS:
-        case EF_SPN_SHORT_CPHS:
-        case EF_INFO_CPHS:
-        case EF_CSP_CPHS:
-            return MF_SIM + DF_GSM;
+            case EF_EXT6:
+            case EF_MWIS:
+            case EF_MBI:
+            case EF_SPN:
+            case EF_AD:
+            case EF_MBDN:
+            case EF_OPL:
+            case EF_PNN:
+            case EF_SPDI:
+            case EF_SST:
+            case EF_CFIS:
+                return MF_SIM + DF_GSM;
+
+            case EF_MAILBOX_CPHS:
+            case EF_VOICE_MAIL_INDICATOR_CPHS:
+            case EF_CFF_CPHS:
+            case EF_SPN_CPHS:
+            case EF_SPN_SHORT_CPHS:
+            case EF_INFO_CPHS:
+            case EF_CSP_CPHS:
+                return MF_SIM + DF_GSM;
+            }
+        } else{
+            switch(efid) {
+            case EF_FDN:
+            case EF_MSISDN:
+            case EF_SMS:
+                return MF_SIM + DF_TELECOM;
+
+            case EF_EXT6:
+            case EF_MWIS:
+            case EF_MBI:
+            case EF_SPN:
+            case EF_AD:
+            case EF_MBDN:
+            case EF_OPL:
+            case EF_PNN:
+            case EF_SPDI:
+            case EF_SST:
+            case EF_CFIS:
+                return MF_SIM + DF_GSM;
+
+            case EF_MAILBOX_CPHS:
+            case EF_VOICE_MAIL_INDICATOR_CPHS:
+            case EF_CFF_CPHS:
+            case EF_SPN_CPHS:
+            case EF_SPN_SHORT_CPHS:
+            case EF_INFO_CPHS:
+            case EF_CSP_CPHS:
+                return MF_SIM + DF_GSM;
+            }
         }
         String path = getCommonIccEFPath(efid);
         if (path == null) {

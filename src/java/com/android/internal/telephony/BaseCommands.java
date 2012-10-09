@@ -37,6 +37,8 @@ import java.util.regex.Pattern;
 public abstract class BaseCommands implements CommandsInterface {
     static final String LOG_TAG = "RILB";
 
+    private boolean mMotoOEM = SystemProperties.getBoolean(TelephonyProperties.PROPERTY_MOTO_OEM, true);
+
     //***** Instance Variables
     protected Context mContext;
     protected RadioState mState = RadioState.RADIO_UNAVAILABLE;
@@ -54,6 +56,8 @@ public abstract class BaseCommands implements CommandsInterface {
     protected RegistrantList mIccStatusChangedRegistrants = new RegistrantList();
     protected RegistrantList mVoicePrivacyOnRegistrants = new RegistrantList();
     protected RegistrantList mVoicePrivacyOffRegistrants = new RegistrantList();
+    /* MOTO OEM EVENT */
+    protected RegistrantList mUnsolOemHookRawRegistrants = new RegistrantList();
     protected Registrant mUnsolOemHookRawRegistrant;
     protected RegistrantList mOtaProvisionRegistrants = new RegistrantList();
     protected RegistrantList mCallWaitingInfoRegistrants = new RegistrantList();
@@ -434,11 +438,20 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     public void setOnUnsolOemHookRaw(Handler h, int what, Object obj) {
-        mUnsolOemHookRawRegistrant = new Registrant (h, what, obj);
+        if (mMotoOEM) {
+            Registrant registrant = new Registrant (h, what, obj);
+            mUnsolOemHookRawRegistrants.add(registrant);
+        } else {
+            mUnsolOemHookRawRegistrant = new Registrant (h, what, obj);
+        }
     }
 
     public void unSetOnUnsolOemHookRaw(Handler h) {
-        mUnsolOemHookRawRegistrant.clear();
+        if (mMotoOEM) {
+            mUnsolOemHookRawRegistrants.remove(h);
+        } else {
+            mUnsolOemHookRawRegistrant.clear();
+        }
     }
 
     public void unregisterForSignalInfo(Handler h) {

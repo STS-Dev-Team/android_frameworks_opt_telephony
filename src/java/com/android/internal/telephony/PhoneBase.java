@@ -19,6 +19,7 @@ package com.android.internal.telephony;
 import android.app.ActivityManagerNative;
 import android.app.IActivityManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.content.SharedPreferences;
 import android.net.LinkCapabilities;
@@ -37,9 +38,11 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.R;
+import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.test.SimulatedRadioControl;
 import com.android.internal.telephony.uicc.IccFileHandler;
 import com.android.internal.telephony.uicc.IccRecords;
+import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.uicc.IsimRecords;
 import com.android.internal.telephony.uicc.SIMRecords;
 import com.android.internal.telephony.uicc.UiccCardApplication;
@@ -52,6 +55,7 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.*;
 
 
 /**
@@ -67,6 +71,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 
 public abstract class PhoneBase extends Handler implements Phone {
+    private boolean mMotoOEM = SystemProperties.getBoolean(TelephonyProperties.PROPERTY_MOTO_OEM, true);
+
     private static final String LOG_TAG = "PHONE";
     private static final boolean LOCAL_DEBUG = true;
 
@@ -118,6 +124,9 @@ public abstract class PhoneBase extends Handler implements Phone {
     protected static final int EVENT_ICC_RECORD_EVENTS              = 30;
     protected static final int EVENT_ICC_CHANGED                    = 31;
     protected static final int EVENT_GET_NETWORKS_DONE              = 32;
+    /* MOTO OEM Events */
+    protected static final int EVENT_RUIM_READY                     = 33;
+    private static final int EVENT_UNSOL_OEM_HOOK_RAW               = 40;
 
     // Key used to read/write current CLIR setting
     public static final String CLIR_KEY = "clir_key";
@@ -261,6 +270,9 @@ public abstract class PhoneBase extends Handler implements Phone {
         // Initialize device storage and outgoing SMS usage monitors for SMSDispatchers.
         mSmsStorageMonitor = new SmsStorageMonitor(this);
         mSmsUsageMonitor = new SmsUsageMonitor(context);
+        if (mMotoOEM) {
+            mCM.setOnUnsolOemHookRaw(this, EVENT_UNSOL_OEM_HOOK_RAW, null);
+        }
         mUiccController = UiccController.getInstance();
         mUiccController.registerForIccChanged(this, EVENT_ICC_CHANGED, null);
     }
@@ -299,36 +311,81 @@ public abstract class PhoneBase extends Handler implements Phone {
     public void handleMessage(Message msg) {
         AsyncResult ar;
 
-        switch(msg.what) {
-            case EVENT_CALL_RING:
-                Log.d(LOG_TAG, "Event EVENT_CALL_RING Received state=" + getState());
-                ar = (AsyncResult)msg.obj;
-                if (ar.exception == null) {
-                    PhoneConstants.State state = getState();
-                    if ((!mDoesRilSendMultipleCallRing)
-                            && ((state == PhoneConstants.State.RINGING) ||
-                                    (state == PhoneConstants.State.IDLE))) {
-                        mCallRingContinueToken += 1;
-                        sendIncomingCallRingNotification(mCallRingContinueToken);
-                    } else {
-                        notifyIncomingRing();
+        if (mMotoOEM) {
+            switch(msg.what) {
+                case EVENT_CALL_RING:
+                    Log.d(LOG_TAG, "Event EVENT_CALL_RING Received state=" + getState());
+                    ar = (AsyncResult)msg.obj;
+                    if (ar.exception == null) {
+                        PhoneConstants.State state = getState();
+                        if ((!mDoesRilSendMultipleCallRing)
+                                && ((state == PhoneConstants.State.RINGING) ||
+                                        (state == PhoneConstants.State.IDLE))) {
+                            mCallRingContinueToken += 1;
+                            sendIncomingCallRingNotification(mCallRingContinueToken);
+                        } else {
+                            notifyIncomingRing();
+                        }
                     }
-                }
-                break;
+                    break;
 
-            case EVENT_CALL_RING_CONTINUE:
-                Log.d(LOG_TAG, "Event EVENT_CALL_RING_CONTINUE Received stat=" + getState());
-                if (getState() == PhoneConstants.State.RINGING) {
-                    sendIncomingCallRingNotification(msg.arg1);
-                }
-                break;
+                case EVENT_CALL_RING_CONTINUE:
+                    Log.d(LOG_TAG, "Event EVENT_CALL_RING_CONTINUE Received stat=" + getState());
+                    if (getState() == PhoneConstants.State.RINGING) {
+                        sendIncomingCallRingNotification(msg.arg1);
+                    }
+                    break;
 
-            case EVENT_ICC_CHANGED:
-                onUpdateIccAvailability();
-                break;
+                case EVENT_UNSOL_OEM_HOOK_RAW:
+                    ar = (AsyncResult)msg.obj;
+                    byte abyte0[] = (byte[])(byte[])ar.result;
+                    Log.d(LOG_TAG, "Event EVENT_UNSOL_OEM_HOOK_RAW data=" + IccUtils.bytesToHexString(abyte0));
+                    if (ar.exception == null) {
+                        Intent intent = new Intent("com.motorola.android.intent.action.ACTION_UNSOL_OEM_HOOK_RAW");
+                        intent.putExtra("data", abyte0);
+                        getContext().sendBroadcast(intent);
+                    }
+                    break;
 
-            default:
-                throw new RuntimeException("unexpected event not handled");
+                case EVENT_ICC_CHANGED:
+                    onUpdateIccAvailability();
+                    break;
+
+                default:
+                    throw new RuntimeException("unexpected event not handled");
+            }
+        } else {
+            switch(msg.what) {
+                case EVENT_CALL_RING:
+                    Log.d(LOG_TAG, "Event EVENT_CALL_RING Received state=" + getState());
+                    ar = (AsyncResult)msg.obj;
+                    if (ar.exception == null) {
+                        PhoneConstants.State state = getState();
+                        if ((!mDoesRilSendMultipleCallRing)
+                                && ((state == PhoneConstants.State.RINGING) ||
+                                        (state == PhoneConstants.State.IDLE))) {
+                            mCallRingContinueToken += 1;
+                            sendIncomingCallRingNotification(mCallRingContinueToken);
+                        } else {
+                            notifyIncomingRing();
+                        }
+                    }
+                    break;
+
+                case EVENT_CALL_RING_CONTINUE:
+                    Log.d(LOG_TAG, "Event EVENT_CALL_RING_CONTINUE Received stat=" + getState());
+                    if (getState() == PhoneConstants.State.RINGING) {
+                        sendIncomingCallRingNotification(msg.arg1);
+                    }
+                    break;
+
+                case EVENT_ICC_CHANGED:
+                    onUpdateIccAvailability();
+                    break;
+
+                default:
+                    throw new RuntimeException("unexpected event not handled");
+            }
         }
     }
 

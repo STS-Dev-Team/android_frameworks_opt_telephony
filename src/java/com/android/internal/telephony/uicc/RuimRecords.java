@@ -53,6 +53,8 @@ import com.android.internal.telephony.uicc.IccCardApplicationStatus.AppType;
 public final class RuimRecords extends IccRecords {
     static final String LOG_TAG = "CDMA";
 
+    private boolean mMotoOEM = SystemProperties.getBoolean(TelephonyProperties.PROPERTY_MOTO_OEM, true);
+
     private static final boolean DBG = true;
     private boolean  m_ota_commited=false;
 
@@ -70,6 +72,8 @@ public final class RuimRecords extends IccRecords {
     private String mMin;
     private String mHomeSystemId;
     private String mHomeNetworkId;
+    /* MOTO OEM EVENT */
+    private String mSfEuimid;
 
     // ***** Event Constants
     private static final int EVENT_APP_READY = 1;
@@ -455,6 +459,29 @@ public final class RuimRecords extends IccRecords {
         if (DBG) log("CSIM PRL version=" + mPrlVersion);
     }
 
+    private class EfCsimSfEuimidLoaded implements IccRecordLoaded {
+        public String getEfName() {
+            if (mMotoOEM) {
+                return "EF_CSIM_SF_EUIMID";
+            } else {
+                return "";
+            }
+        }
+        public void onRecordLoaded(AsyncResult ar) {
+            if (mMotoOEM) {
+                onGetCsimSfEuimidDone(ar);
+            }
+        }
+    }
+
+    private void onGetCsimSfEuimidDone(AsyncResult ar) {
+        if (mMotoOEM) {
+            byte[] data = (byte[]) ar.result;
+            mSfEuimid = IccUtils.bytesToHexString(data);
+            log("CSIM SF_EUIMID is " + mSfEuimid);
+        }
+    }
+
     @Override
     public void handleMessage(Message msg) {
         AsyncResult ar;
@@ -685,6 +712,12 @@ public final class RuimRecords extends IccRecords {
                 obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimEprlLoaded()));
         recordsToLoad++;
 
+        if (mMotoOEM) {
+            mFh.loadEFTransparent(EF_CSIM_SF_EUIMID,
+                    obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimSfEuimidLoaded()));
+            recordsToLoad++;
+        }
+
         if (DBG) log("fetchRuimRecords " + recordsToLoad + " requested: " + recordsRequested);
         // Further records that can be inserted are Operator/OEM dependent
     }
@@ -798,6 +831,14 @@ public final class RuimRecords extends IccRecords {
 
     public String getNid() {
         return mHomeNetworkId;
+    }
+
+    public String getEuimid() {
+        if (mMotoOEM) {
+            return mSfEuimid;
+        } else {
+            return "";
+        }
     }
 
     public boolean getCsimSpnDisplayCondition() {

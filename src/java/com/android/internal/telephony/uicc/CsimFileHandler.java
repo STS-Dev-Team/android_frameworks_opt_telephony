@@ -16,9 +16,11 @@
 
 package com.android.internal.telephony.uicc;
 
+import android.os.SystemProperties;
 import android.util.Log;
 
 import com.android.internal.telephony.CommandsInterface;
+import com.android.internal.telephony.TelephonyProperties;
 
 /**
  * {@hide}
@@ -27,24 +29,43 @@ import com.android.internal.telephony.CommandsInterface;
 public final class CsimFileHandler extends IccFileHandler implements IccConstants {
     static final String LOG_TAG = "RIL_CsimFH";
 
+    private boolean mMotoOEM = SystemProperties.getBoolean(TelephonyProperties.PROPERTY_MOTO_OEM, true);
+
     public CsimFileHandler(UiccCardApplication app, String aid, CommandsInterface ci) {
         super(app, aid, ci);
     }
 
     @Override
     protected String getEFPath(int efid) {
-        switch(efid) {
-        case EF_SMS:
-        case EF_CST:
-        case EF_FDN:
-        case EF_MSISDN:
-        case EF_RUIM_SPN:
-        case EF_CSIM_LI:
-        case EF_CSIM_MDN:
-        case EF_CSIM_IMSIM:
-        case EF_CSIM_CDMAHOME:
-        case EF_CSIM_EPRL:
-            return MF_SIM + DF_ADF;
+        if (mMotoOEM) {
+            switch(efid) {
+            case EF_SMS:
+            case EF_CST:
+            case EF_FDN:
+            case EF_MSISDN:
+            case EF_RUIM_SPN:
+            case EF_CSIM_LI:
+            case EF_CSIM_MDN:
+            case EF_CSIM_IMSIM:
+            case EF_CSIM_SF_EUIMID:
+            case EF_CSIM_CDMAHOME:
+            case EF_CSIM_EPRL:
+                return MF_SIM + DF_ADF;
+            }
+        } else {
+            switch(efid) {
+            case EF_SMS:
+            case EF_CST:
+            case EF_FDN:
+            case EF_MSISDN:
+            case EF_RUIM_SPN:
+            case EF_CSIM_LI:
+            case EF_CSIM_MDN:
+            case EF_CSIM_IMSIM:
+            case EF_CSIM_CDMAHOME:
+            case EF_CSIM_EPRL:
+                return MF_SIM + DF_ADF;
+            }
         }
         String path = getCommonIccEFPath(efid);
         if (path == null) {

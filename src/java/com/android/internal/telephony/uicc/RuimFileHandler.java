@@ -20,12 +20,15 @@ import android.os.*;
 import android.util.Log;
 
 import com.android.internal.telephony.CommandsInterface;
+import com.android.internal.telephony.TelephonyProperties;
 
 /**
  * {@hide}
  */
 public final class RuimFileHandler extends IccFileHandler {
     static final String LOG_TAG = "CDMA";
+
+    private boolean mMotoOEM = SystemProperties.getBoolean(TelephonyProperties.PROPERTY_MOTO_OEM, true);
 
     //***** Instance Variables
 
@@ -48,6 +51,20 @@ public final class RuimFileHandler extends IccFileHandler {
     }
 
     @Override
+    public void loadEFTransparent(int fileid, Message message) {
+        if (mMotoOEM) {
+            if (fileid == EF_CSIM_EPRL) {
+                Message response = obtainMessage(EVENT_READ_BINARY_DONE, fileid, 0, message);
+
+                mCi.iccIOForApp(COMMAND_GET_RESPONSE, fileid, "img", 0, 0,
+                    READ_RECORD_MODE_ABSOLUTE, null, null, mAid, response);
+            } else {
+                super.loadEFTransparent(fileid, message);
+            }
+        }
+    }
+
+    @Override
     protected String getEFPath(int efid) {
 		// Both EF_ADN and EF_CSIM_LI are referring to same constant value 0x6F3A.
         // So cannot derive different paths for them using exisitng logic
@@ -55,19 +72,38 @@ public final class RuimFileHandler extends IccFileHandler {
         if (efid == EF_ADN) {
             return MF_SIM + DF_TELECOM;
         }
-        switch(efid) {
-        case EF_SMS:
-        case EF_CST:
-        case EF_RUIM_SPN:
-        case EF_CSIM_LI:
-        case EF_CSIM_MDN:
-        case EF_CSIM_IMSIM:
-        case EF_CSIM_CDMAHOME:
-        case EF_CSIM_EPRL:
-            return MF_SIM + DF_CDMA;
-        case EF_FDN:
-        case EF_MSISDN:
-            return MF_SIM + DF_TELECOM;
+        if (mMotoOEM) {
+            switch(efid) {
+            case EF_SMS:
+            case EF_CST:
+            case EF_RUIM_SPN:
+            case EF_CSIM_LI:
+            case EF_CSIM_MDN:
+            case EF_CSIM_IMSIM:
+            case EF_CSIM_SF_EUIMID:
+            case EF_CSIM_CDMAHOME:
+            case EF_CSIM_EPRL:
+                Log.d(LOG_TAG, "[CsimFileHandler] getEFPath for " + efid);
+                return MF_SIM + DF_ADFISIM;
+            case EF_FDN:
+            case EF_MSISDN:
+                return MF_SIM + DF_TELECOM;
+            }
+        } else {
+            switch(efid) {
+            case EF_SMS:
+            case EF_CST:
+            case EF_RUIM_SPN:
+            case EF_CSIM_LI:
+            case EF_CSIM_MDN:
+            case EF_CSIM_IMSIM:
+            case EF_CSIM_CDMAHOME:
+            case EF_CSIM_EPRL:
+                return MF_SIM + DF_CDMA;
+            case EF_FDN:
+            case EF_MSISDN:
+                return MF_SIM + DF_TELECOM;
+            }
         }
         return getCommonIccEFPath(efid);
     }
