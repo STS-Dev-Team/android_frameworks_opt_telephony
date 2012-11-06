@@ -373,11 +373,10 @@ public class GsmConnection extends Connection {
             default:
                 GSMPhone phone = owner.phone;
                 int serviceState = phone.getServiceState().getState();
-                UiccCardApplication cardApp = UiccController
+                AppState uiccAppState = UiccController
                         .getInstance()
-                        .getUiccCardApplication(UiccController.APP_FAM_3GPP);
-                AppState uiccAppState = (cardApp != null) ? cardApp.getState() :
-                                                            AppState.APPSTATE_UNKNOWN;
+                        .getUiccCardApplication(UiccController.APP_FAM_3GPP)
+                        .getState();
                 if (serviceState == ServiceState.STATE_POWER_OFF) {
                     return DisconnectCause.POWER_OFF;
                 } else if (serviceState == ServiceState.STATE_OUT_OF_SERVICE
