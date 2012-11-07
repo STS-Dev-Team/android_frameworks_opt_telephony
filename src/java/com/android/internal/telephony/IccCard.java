@@ -251,7 +251,8 @@ public interface IccCard {
         NETWORK_LOCKED,
         READY,
         NOT_READY,
-        PERM_DISABLED;
+        PERM_DISABLED,
+        CARD_IO_ERROR;
 
         public boolean isPinLocked() {
             return ((this == PIN_REQUIRED) || (this == PUK_REQUIRED));
