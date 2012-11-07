@@ -2398,6 +2398,13 @@ public final class GsmDataConnectionTracker extends DataConnectionTracker {
             }
         }
     }
+ 
+     @Override
+    protected DataConnection getActiveDataConnection(String type) {
+        return mApnContexts.get(type).getState() ==
+                    DctConstants.State.CONNECTED ?
+                    mApnContexts.get(type).getDataConnection() : null;
+    }
 
     @Override
     protected void log(String s) {

@@ -19,6 +19,8 @@ package com.android.internal.telephony;
 import com.android.internal.telephony.gsm.SmsBroadcastConfigInfo;
 import com.android.internal.telephony.uicc.IccCardStatus;
 
+import java.util.ArrayList;
+
 import android.os.Message;
 import android.os.Handler;
 import android.util.Log;
@@ -552,6 +554,16 @@ public interface CommandsInterface {
       */
      void registerForExitEmergencyCallbackMode(Handler h, int what, Object obj);
      void unregisterForExitEmergencyCallbackMode(Handler h);
+
+    /**
+     * Handlers for QoS state change indication
+     * @param h Handler for subscription ready messages.
+     * @param what User-defined message code.
+     * @param obj User object.
+     */
+    void registerForQosStateChangedInd(Handler h, int what, Object obj);
+    void unregisterForQosStateChangedInd(Handler h);
+
 
      /**
       * Registers the handler for RIL_UNSOL_RIL_CONNECT events.
@@ -1625,4 +1637,56 @@ public interface CommandsInterface {
      * Notifiy that we are testing an emergency call
      */
     public void testingEmergencyCall();
+
+    /**
+     * Sets Quality of Service(QoS) parameters at Modem.
+     * @param callId
+     *          Call ID of the data call for which QoS is requested
+     * @param qosFlows
+     *          List of QoS flows to be setup for this call
+     * @param result
+     *          Callback message contains the information of SUCCESS/FAILURE.
+    */
+    public void setupQosReq (int callId, ArrayList<String> qosFlows, Message result);
+
+    /**
+     * Request to Quality of Service(QOS).
+     * @param qosId
+     * @param result
+     *          Callback message contains the information of SUCCESS/FAILURE.
+    */
+    public void releaseQos (int qosId, Message result);
+
+    /**
+     * Modify an active Quality of Service(QoS).
+     * @param qosId
+     * @param qosFlows
+     * @param result
+     *          Callback message contains the information of SUCCESS/FAILURE.
+    */
+    public void modifyQos (int qosId, ArrayList<String> qosFlows, Message result);
+
+    /**
+     * Suspends an active Quality of Service(QoS).
+     * @param qosId
+     * @param result
+     *          Callback message contains the information of SUCCESS/FAILURE.
+    */
+    public void suspendQos (int qosId, Message result);
+
+    /**
+     * Resume a suspended Quality of Service(QoS).
+     * @param qosId
+     * @param result
+     *          Callback message contains the information of SUCCESS/FAILURE.
+    */
+    public void resumeQos (int qosId, Message result);
+
+    /**
+     * Gets current status and parameters associated with the given QoS ID.
+     * @param qosId
+     * @param result
+     *          Callback message contains the information of SUCCESS/FAILURE.
+    */
+    public void getQosStatus (int qosId, Message result);
 }
