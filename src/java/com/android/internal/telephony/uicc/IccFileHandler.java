@@ -169,10 +169,10 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
                 new LoadLinearFixedContext(IccConstants.EF_IMG, recordNum,
                         onLoaded));
 
-        mCi.iccIOForApp(COMMAND_GET_RESPONSE, IccConstants.EF_IMG,
+        mCi.iccIOForApp(COMMAND_READ_RECORD, IccConstants.EF_IMG,
                          getEFPath(IccConstants.EF_IMG), recordNum,
           READ_RECORD_MODE_ABSOLUTE, GET_RESPONSE_EF_IMG_SIZE_BYTES,
-                                           null, null,mAid,response);
+                                           null, null, mAid,response);
     }
 
     /**
@@ -270,8 +270,14 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
          * are present. The possible image file identifiers (EF instance) for
          * EF img ( 4F20, linear fixed file) are : 4F01 ... 4F05.
          */
-        mCi.iccIOForApp(COMMAND_READ_BINARY, fileid, getEFPath(fileid),
-                highOffset, lowOffset,length, null, null,mAid,response);
+        String s;
+        if(fileid >= 0x4f01 && fileid <= 0x4f05)
+            s = MF_SIM + DF_TELECOM + DF_GRAPHICS;
+        else
+            s = getEFPath(fileid);
+
+        mCi.iccIOForApp(COMMAND_READ_BINARY, fileid, s, highOffset, lowOffset,
+                length, null, null, mAid, response);
     }
 
     /**
@@ -555,6 +561,7 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
         switch(efid) {
         case EF_ADN:
         case EF_SDN:
+        case EF_SMSP:
         case EF_EXT1:
         case EF_EXT2:
         case EF_EXT3:

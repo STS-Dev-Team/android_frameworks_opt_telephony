@@ -42,9 +42,21 @@ public final class RuimFileHandler extends IccFileHandler {
         Message response = obtainMessage(EVENT_READ_ICON_DONE, fileid, 0,
                 onLoaded);
 
-        mCi.iccIOForApp(COMMAND_GET_RESPONSE, fileid, "img", 0, 0,
+        mCi.iccIOForApp(COMMAND_GET_RESPONSE, fileid, getEFPath(fileid), 0, 0,
                 GET_RESPONSE_EF_IMG_SIZE_BYTES, null, null,
                 mAid, response);
+    }
+
+    @Override
+    public void loadEFTransparent(int fileid, Message message) {
+        if (fileid == EF_CSIM_EPRL) {
+            Message response = obtainMessage(EVENT_READ_BINARY_DONE, fileid, 0, message);
+
+            mCi.iccIOForApp(COMMAND_GET_RESPONSE, fileid, "img", 0, 0,
+                READ_RECORD_MODE_ABSOLUTE, null, null, mAid, response);
+        } else {
+            super.loadEFTransparent(fileid, message);
+        }
     }
 
     @Override
@@ -63,9 +75,11 @@ public final class RuimFileHandler extends IccFileHandler {
         case EF_CSIM_LI:
         case EF_CSIM_MDN:
         case EF_CSIM_IMSIM:
+        case EF_CSIM_SF_EUIMID:
         case EF_CSIM_CDMAHOME:
         case EF_CSIM_EPRL:
-            return MF_SIM + DF_CDMA;
+            Log.d(LOG_TAG, "[CsimFileHandler] getEFPath for " + efid);
+            return MF_SIM + DF_ADFISIM;
         case EF_FDN:
         case EF_MSISDN:
             return MF_SIM + DF_TELECOM;
