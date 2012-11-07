@@ -37,8 +37,8 @@ import com.android.internal.telephony.PhoneBase;
 import com.android.internal.telephony.SmsMessageBase;
 import com.android.internal.telephony.gsm.SimTlv;
 import com.android.internal.telephony.gsm.SmsMessage;
-import com.android.internal.telephony.IccRefreshResponse;
-import com.android.internal.telephony.UiccCardApplication;
+import com.android.internal.telephony.uicc.IccRefreshResponse;
+import com.android.internal.telephony.uicc.UiccCardApplication;
 import com.android.internal.telephony.gsm.Eons;
 
 import java.util.ArrayList;

@@ -18,7 +18,7 @@ package com.android.internal.telephony.gsm;
 
 import android.util.Log;
 
-import com.android.internal.telephony.IccUtils;
+import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.OperatorInfo;
 
 import java.util.ArrayList;
