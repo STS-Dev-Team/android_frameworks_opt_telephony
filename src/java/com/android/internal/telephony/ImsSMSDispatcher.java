@@ -80,10 +80,10 @@ public final class ImsSMSDispatcher extends SMSDispatcher {
 
         switch (msg.what) {
         case EVENT_RADIO_ON:
+        case EVENT_IMS_STATE_CHANGED: // received unsol
             mCm.getImsRegistrationState(this.obtainMessage(EVENT_IMS_STATE_DONE));
             break;
 
-        case EVENT_IMS_STATE_CHANGED: // received unsol
         case EVENT_IMS_STATE_DONE:
             ar = (AsyncResult) msg.obj;
 
@@ -120,17 +120,13 @@ public final class ImsSMSDispatcher extends SMSDispatcher {
 
         mIms = false;
         if (responseArray[0] == 1) {  // IMS is registered
-            if ((responseArray[1] & 0x1) == 0x1) { // SMS over IMS is supported
-                Log.d(TAG, "IMS is registered and SMS is supported.");
-                mIms = true;
-            } else {
-                Log.d(TAG, "IMS is registered with no SMS support.");
-            }
+            Log.d(TAG, "IMS is registered!");
+            mIms = true;
         } else {
             Log.d(TAG, "IMS is NOT registered!");
         }
 
-        setImsSmsFormat(responseArray[2]);
+        setImsSmsFormat(responseArray[1]);
 
         if ((SmsConstants.FORMAT_UNKNOWN.equals(mImsSmsFormat))) {
             Log.e(TAG, "IMS format was unknown!");
