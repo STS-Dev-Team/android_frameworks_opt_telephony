@@ -922,14 +922,7 @@ public abstract class DataConnection extends StateMachine {
                     transitionTo(mActivatingState);
                     retVal = HANDLED;
                     break;
-                case EVENT_QOS_ENABLE:
-                case EVENT_QOS_GET_STATUS:
-                    if (DBG) log("DcActiveState moving to DcQosActiveState msg.what="
-                                + msg.what);
-                    deferMessage(msg);
-                    transitionTo(mQosActiveState);
-                    retVal = HANDLED;
-                    break;
+
                 case EVENT_DISCONNECT:
                     if (DBG) log("DcInactiveState: msg.what=EVENT_DISCONNECT");
                     notifyDisconnectCompleted((DisconnectParams)msg.obj, false);
@@ -1102,6 +1095,14 @@ public abstract class DataConnection extends StateMachine {
                     if (msg.obj != null) {
                         notifyConnectCompleted((ConnectionParams) msg.obj, FailCause.NONE);
                     }
+                    retVal = HANDLED;
+                    break;
+                case EVENT_QOS_ENABLE:
+                case EVENT_QOS_GET_STATUS:
+                    if (DBG) log("DcActiveState moving to DcQosActiveState msg.what="
+                                + msg.what);
+                    deferMessage(msg);
+                    transitionTo(mQosActiveState);
                     retVal = HANDLED;
                     break;
                 case EVENT_DISCONNECT:
