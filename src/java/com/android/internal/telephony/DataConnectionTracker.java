@@ -41,6 +41,7 @@ import android.os.SystemProperties;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.provider.Settings.SettingNotFoundException;
+import android.provider.Telephony;
 import android.telephony.ServiceState;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -252,6 +253,26 @@ public abstract class DataConnectionTracker extends Handler {
 
     /* Once disposed dont handle any messages */
     protected boolean mIsDisposed = false;
+
+    /** Watches for changes to the APN db. */
+    private ApnChangeObserver mApnObserver;
+
+    /**
+     * Handles changes to the APN db.
+     */
+    private class ApnChangeObserver extends ContentObserver {
+        public ApnChangeObserver (Handler h) {
+            super(h);
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            sendMessage(obtainMessage(DctConstants.EVENT_APN_CHANGED));
+        }
+    }
+
+    // Handles changes in Profiles database
+    protected abstract void onApnChanged();
 
     protected ContentResolver mResolver;
 
@@ -466,6 +487,10 @@ public abstract class DataConnectionTracker extends Handler {
         mDataRoamingSettingObserver = new DataRoamingSettingObserver(mPhone);
         mDataRoamingSettingObserver.register(mPhone.getContext());
 
+        mApnObserver = new ApnChangeObserver(this);
+        mPhone.getContext().getContentResolver().registerContentObserver(
+                Telephony.Carriers.CONTENT_URI, true, mApnObserver);
+
         mResolver = mPhone.getContext().getContentResolver();
     }
 
@@ -479,6 +504,7 @@ public abstract class DataConnectionTracker extends Handler {
         mPhone.getContext().unregisterReceiver(this.mIntentReceiver);
         mDataRoamingSettingObserver.unregister(mPhone.getContext());
         mUiccController.unregisterForIccChanged(this);
+        mPhone.getContext().getContentResolver().unregisterContentObserver(this.mApnObserver);
     }
 
     protected void broadcastMessenger() {
@@ -708,6 +734,10 @@ public abstract class DataConnectionTracker extends Handler {
             }
             case DctConstants.EVENT_ICC_CHANGED:
                 onUpdateIcc();
+                break;
+
+            case DctConstants.EVENT_APN_CHANGED:
+                onApnChanged();
                 break;
 
             default:
@@ -1597,6 +1627,11 @@ public abstract class DataConnectionTracker extends Handler {
         pw.println(" mIsDisposed=" + mIsDisposed);
         pw.println(" mIntentReceiver=" + mIntentReceiver);
         pw.println(" mDataRoamingSettingObserver=" + mDataRoamingSettingObserver);
+        pw.println(" mApnObserver=" + mApnObserver);
         pw.flush();
+    }
+
+    public IccRecords getIccRecords() {
+        return mIccRecords.get();
     }
 }
