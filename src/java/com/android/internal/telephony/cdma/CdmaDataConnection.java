@@ -89,7 +89,9 @@ public class CdmaDataConnection extends DataConnection {
             dataProfile = RILConstants.DATA_PROFILE_DEFAULT;
         }
 
-        if (cp.apn.getDataProfileType() == DataProfileType.PROFILE_TYPE_OMH) {
+        if ((cp.apn != null) &&  (cp.apn.types != null) && 
+                (cp.apn.getDataProfileType() != null) &&
+                (cp.apn.getDataProfileType() == DataProfileType.PROFILE_TYPE_OMH)) {
             dataProfile = cp.apn.getProfileId() + RILConstants.DATA_PROFILE_OEM_BASE;
         } else {
             mApn.setProfileId(dataProfile);
