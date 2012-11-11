@@ -339,7 +339,7 @@ public abstract class DataConnectionTracker extends Handler {
             }
 
             if (mNetStatPollEnabled) {
-                mDataConnectionTracker.postDelayed(this, mNetStatPollPeriod);
+                postDelayed(this, mNetStatPollPeriod);
             }
         }
     };
