@@ -855,23 +855,23 @@ public class GSMPhone extends PhoneBase {
 
     public String getSubscriberId() {
         IccRecords r = mIccRecords.get();
-        return (r != null) ? r.getIMSI() : "";
+        return (r != null) ? r.getIMSI() : null;
     }
 
     public String getLine1Number() {
         IccRecords r = mIccRecords.get();
-        return (r != null) ? r.getMsisdnNumber() : "";
+        return (r != null) ? r.getMsisdnNumber() : null;
     }
 
     @Override
     public String getMsisdn() {
         IccRecords r = mIccRecords.get();
-        return (r != null) ? r.getMsisdnNumber() : "";
+        return (r != null) ? r.getMsisdnNumber() : null;
     }
 
     public String getLine1AlphaTag() {
         IccRecords r = mIccRecords.get();
-        return (r != null) ? r.getMsisdnAlphaTag() : "";
+        return (r != null) ? r.getMsisdnAlphaTag() : null;
     }
 
     public void setLine1Number(String alphaTag, String number, Message onComplete) {
