@@ -126,7 +126,7 @@ public abstract class IccRecords extends Handler implements IccConstants {
 
     public abstract void onReady();
 
-    //***** Public Methods
+    /***** Public Methods ******/
     public AdnRecordCache getAdnCache() {
         return adnCache;
     }
@@ -186,6 +186,10 @@ public abstract class IccRecords extends Handler implements IccConstants {
     }
     public void unregisterForNetworkSelectionModeAutomatic(Handler h) {
         mNetworkSelectionModeAutomaticRegistrants.remove(h);
+    }
+
+    public String getEuimid() {
+        return null;
     }
 
     /**
@@ -319,6 +323,8 @@ public abstract class IccRecords extends Handler implements IccConstants {
      */
     public abstract void onRefresh(boolean fileChanged, int[] fileList);
 
+    void recordsRequired() {
+    }
 
     public boolean getRecordsLoaded() {
         if (recordsToLoad == 0 && recordsRequested == true) {

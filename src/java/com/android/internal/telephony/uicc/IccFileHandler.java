@@ -98,6 +98,7 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
     protected final CommandsInterface mCi;
     protected final UiccCardApplication mParentApp;
     protected final String mAid;
+    private String mSpecifiedAid = null;
 
     static class LoadLinearFixedContext {
 
@@ -228,6 +229,15 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
                         0, 0, GET_RESPONSE_EF_SIZE_BYTES, null, null, mAid, response);
     }
 
+    public void loadEFTransparent(int fileid, Message onLoaded, String newAid) {
+        Message response = obtainMessage(EVENT_GET_BINARY_SIZE_DONE,
+                        fileid, 0, onLoaded);
+
+        mSpecifiedAid = newAid;
+        mCi.iccIOForApp(COMMAND_GET_RESPONSE, fileid, getEFPath(fileid),
+                        0, 0, GET_RESPONSE_EF_SIZE_BYTES, null, null, newAid, response);
+    }
+
     /**
      * Load first @size bytes from SIM Transparent EF
      *
@@ -293,10 +303,10 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
     }
 
 
-    //***** Abstract Methods
+    /***** Abstract Methods *****/
 
 
-    //***** Private Methods
+    /***** Private Methods *****/
 
     private void sendResult(Message response, Object result, Throwable ex) {
         if (response == null) {
@@ -308,7 +318,7 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
         response.sendToTarget();
     }
 
-    //***** Overridden from Handler
+    /***** Overridden from Handler *****/
 
     public void handleMessage(Message msg) {
         AsyncResult ar;
@@ -503,10 +513,16 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
                 size = ((data[RESPONSE_DATA_FILE_SIZE_1] & 0xff) << 8)
                        + (data[RESPONSE_DATA_FILE_SIZE_2] & 0xff);
 
-                mCi.iccIOForApp(COMMAND_READ_BINARY, fileid, getEFPath(fileid),
-                                0, 0, size, null, null, mAid,
-                                obtainMessage(EVENT_READ_BINARY_DONE,
-                                              fileid, 0, response));
+                if (fileid == EF_CSIM_SF_EUIMID && mSpecifiedAid != null)
+                    mCi.iccIOForApp(COMMAND_READ_BINARY, fileid, getEFPath(fileid),
+                                    0, 0, size, null, null, mSpecifiedAid,
+                                    obtainMessage(EVENT_READ_BINARY_DONE,
+                                                  fileid, 0, response));
+                else
+                    mCi.iccIOForApp(COMMAND_READ_BINARY, fileid, getEFPath(fileid),
+                                    0, 0, size, null, null, mAid,
+                                    obtainMessage(EVENT_READ_BINARY_DONE,
+                                                  fileid, 0, response));
             break;
 
             case EVENT_READ_RECORD_DONE:

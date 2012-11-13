@@ -583,6 +583,10 @@ public class UiccCardApplication {
         }
     }
 
+    public UiccCard getCard() {
+        return mUiccCard;
+    }
+
     /**
      * Supply the ICC PIN to the ICC
      *

@@ -334,6 +334,18 @@ public class UiccCard {
         }
     }
 
+    public UiccCardApplication getApplication(IccCardApplicationStatus.AppType apptype) {
+        synchronized (mLock) {
+            UiccCardApplication uicccardapplication = null;
+            for (int i = 0 ; i < mUiccApplications.length; i++) {
+                if (mUiccApplications[i] != null && mUiccApplications[i].getType() == apptype) {
+                    return mUiccApplications[i];
+                }
+            }
+            return null;
+        }
+    }
+
     public UiccCardApplication getApplicationIndex(int index) {
         synchronized (mLock) {
             if (index >= 0 && index < mUiccApplications.length) {

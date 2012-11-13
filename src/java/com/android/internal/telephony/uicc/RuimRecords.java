@@ -62,6 +62,8 @@ public final class RuimRecords extends IccRecords {
     private String mMin2Min1;
 
     private String mPrlVersion;
+    private boolean mRecordsRequired = false;
+    private boolean getImsiDirect = false;
     // From CSIM application
     private byte[] mEFpl = null;
     private byte[] mEFli = null;
@@ -75,6 +77,7 @@ public final class RuimRecords extends IccRecords {
 
     // ***** Event Constants
     private static final int EVENT_APP_READY = 1;
+    private static final int EVENT_GET_IMSI_DONE = 3;
     private static final int EVENT_GET_DEVICE_IDENTITY_DONE = 4;
     private static final int EVENT_GET_ICCID_DONE = 5;
     private static final int EVENT_GET_CDMA_SUBSCRIPTION_DONE = 10;
@@ -98,6 +101,9 @@ public final class RuimRecords extends IccRecords {
         // recordsToLoad is set to 0 because no requests are made yet
         recordsToLoad = 0;
 
+        if (mParentApp.getType() == IccCardApplicationStatus.AppType.APPTYPE_CSIM && SystemProperties.getBoolean("ro.mot.ignore_csim_appid", false))
+            getImsiDirect = true;
+
         // NOTE the EVENT_SMS_ON_RUIM is not registered
         mCi.registerForIccRefresh(this, EVENT_RUIM_REFRESH, null);
 
@@ -120,6 +126,12 @@ public final class RuimRecords extends IccRecords {
     @Override
     protected void finalize() {
         if(DBG) log("RuimRecords finalized");
+    }
+
+    void recordsRequired() {
+        log("recordsRequired");
+        mRecordsRequired = true;
+        fetchRuimRecords();
     }
 
     protected void resetRecords() {
@@ -392,15 +404,17 @@ public final class RuimRecords extends IccRecords {
             } else {
                 if (DBG) log("min not present");
             }
-            
-            //Update MccTable with the retrieved IMSI
-            String operatorNumeric = getOperatorNumeric();
-            if (operatorNumeric != null) {
-                if (operatorNumeric.length() <= 6) {
-                    MccTable.updateMccMncConfiguration(mContext, operatorNumeric);
+
+            if (!getImsiDirect) {
+                //Update MccTable with the retrieved IMSI
+                String operatorNumeric = getOperatorNumeric();
+                if (operatorNumeric != null) {
+                    if (operatorNumeric.length() <= 6) {
+                        MccTable.updateMccMncConfiguration(mContext, operatorNumeric);
+                    }
                 }
+                mImsiReadyRegistrants.notifyRegistrants();
             }
-            mImsiReadyRegistrants.notifyRegistrants();
         }
     }
 
@@ -470,7 +484,8 @@ public final class RuimRecords extends IccRecords {
 
     private void onGetCsimSfEuimidDone(AsyncResult ar) {
         byte[] data = (byte[]) ar.result;
-        mSfEuimid = IccUtils.bytesToHexString(data);
+//        mSfEuimid = IccUtils.bytesToHexString(data);
+        mSfEuimid = IccUtils.reverseBytesToHexString(data);
         log("CSIM SF_EUIMID is " + mSfEuimid);
     }
 
@@ -491,6 +506,29 @@ public final class RuimRecords extends IccRecords {
         try { switch (msg.what) {
             case EVENT_APP_READY:
                 onReady();
+                break;
+
+            case EVENT_GET_IMSI_DONE:
+                isRecordLoadResponse = true;
+
+                ar = (AsyncResult)msg.obj;
+                if (ar.exception != null) {
+                    loge("Exception querying IMSI, Exception:" + ar.exception);
+                }
+                else {
+                    mImsi = (String)ar.result;
+                    if (mImsi != null && (mImsi.length() < 6 || mImsi.length() > 15)) {
+                        loge("invalid IMSI " + mImsi);
+                        mImsi = null;
+                    }
+                    log("IMSI: " + mImsi.substring(0, 6) + "xxxxxxxxx");
+                    String operatorNumeric = getOperatorNumeric();
+                    if (operatorNumeric != null) {
+                        if (operatorNumeric.length() <= 6) {
+                            MccTable.updateMccMncConfiguration(mContext, operatorNumeric);
+                        }
+                    }
+                }
                 break;
 
             case EVENT_GET_DEVICE_IDENTITY_DONE:
@@ -666,50 +704,68 @@ public final class RuimRecords extends IccRecords {
 
 
     private void fetchRuimRecords() {
-        recordsRequested = true;
+        if (recordsRequested || !mRecordsRequired || mParentApp.getState() != IccCardApplicationStatus.AppState.APPSTATE_READY) {
+            log("fetchRuimRecords: Abort fetching records recordsRequested = " + recordsRequested
+                    + " state = " + mParentApp.getState() + " required = " + mRecordsRequired);
+        } else {
 
-        if (DBG) log("fetchRuimRecords " + recordsToLoad);
+            recordsRequested = true;
 
-        mFh.loadEFTransparent(EF_ICCID,
-                obtainMessage(EVENT_GET_ICCID_DONE));
-        recordsToLoad++;
+            if (DBG) log("fetchRuimRecords " + recordsToLoad);
 
-        mFh.loadEFTransparent(EF_PL,
-                obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfPlLoaded()));
-        recordsToLoad++;
+            if (getImsiDirect) {
+                String parentAid;
+                if (SystemProperties.getBoolean("ro.mot.ignore_csim_appid", false))
+                    parentAid = null;
+                else
+                    parentAid = mParentApp.getAid();
+                mCi.getIMSIForApp(parentAid, obtainMessage(EVENT_GET_IMSI_DONE));
+                recordsToLoad++;
+            }
 
-        mFh.loadEFTransparent(EF_CSIM_LI,
-                obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimLiLoaded()));
-        recordsToLoad++;
+            mFh.loadEFTransparent(EF_ICCID,
+                    obtainMessage(EVENT_GET_ICCID_DONE));
+            recordsToLoad++;
 
-        mFh.loadEFTransparent(EF_CSIM_SPN,
-                obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimSpnLoaded()));
-        recordsToLoad++;
+            mFh.loadEFTransparent(EF_PL,
+                    obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfPlLoaded()));
+            recordsToLoad++;
 
-        mFh.loadEFLinearFixed(EF_CSIM_MDN, 1,
-                obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimMdnLoaded()));
-        recordsToLoad++;
+            mFh.loadEFTransparent(EF_CSIM_LI,
+                    obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimLiLoaded()));
+            recordsToLoad++;
 
-        mFh.loadEFTransparent(EF_CSIM_IMSIM,
-                obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimImsimLoaded()));
-        recordsToLoad++;
+            mFh.loadEFTransparent(EF_CSIM_SPN,
+                    obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimSpnLoaded()));
+            recordsToLoad++;
 
-        mFh.loadEFLinearFixedAll(EF_CSIM_CDMAHOME,
-                obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimCdmaHomeLoaded()));
-        recordsToLoad++;
+            mFh.loadEFLinearFixed(EF_CSIM_MDN, 1,
+                    obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimMdnLoaded()));
+            recordsToLoad++;
 
-        // Entire PRL could be huge. We are only interested in
-        // the first 4 bytes of the record.
-        mFh.loadEFTransparent(EF_CSIM_EPRL, 4,
-                obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimEprlLoaded()));
-        recordsToLoad++;
+            mFh.loadEFTransparent(EF_CSIM_IMSIM,
+                    obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimImsimLoaded()));
+            recordsToLoad++;
 
-        mFh.loadEFTransparent(EF_CSIM_SF_EUIMID,
-                obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimSfEuimidLoaded()));
-        recordsToLoad++;
+            mFh.loadEFLinearFixedAll(EF_CSIM_CDMAHOME,
+                    obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimCdmaHomeLoaded()));
+            recordsToLoad++;
 
-        if (DBG) log("fetchRuimRecords " + recordsToLoad + " requested: " + recordsRequested);
-        // Further records that can be inserted are Operator/OEM dependent
+            // Entire PRL could be huge. We are only interested in
+            // the first 4 bytes of the record.
+            mFh.loadEFTransparent(EF_CSIM_EPRL, 4,
+                    obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimEprlLoaded()));
+            recordsToLoad++;
+
+            if (mParentApp.getType() == IccCardApplicationStatus.AppType.APPTYPE_CSIM) {
+                mFh.loadEFTransparent(EF_CSIM_SF_EUIMID,
+                        obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimSfEuimidLoaded()));
+                recordsToLoad++;
+            }
+
+            if (DBG) log("fetchRuimRecords " + recordsToLoad + " requested: " + recordsRequested);
+            // Further records that can be inserted are Operator/OEM dependent
+        }
     }
 
     /**

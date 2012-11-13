@@ -527,4 +527,20 @@ public class IccUtils {
         } while (valueIndex < endIndex);
         return result;
     }
+
+    public static String reverseBytesToHexString(byte abyte0[]) {
+        String s;
+        if(abyte0 == null) {
+            s = null;
+        } else {
+            StringBuilder stringbuilder = new StringBuilder(2 * abyte0.length);
+            for(int i = -1 + abyte0.length; i >= 0; i--) {
+                stringbuilder.append("0123456789abcdef".charAt(0xf & abyte0[i] >> 4));
+                stringbuilder.append("0123456789abcdef".charAt(0xf & abyte0[i]));
+            }
+            s = stringbuilder.toString();
+        }
+        return s;
+    }
+
 }

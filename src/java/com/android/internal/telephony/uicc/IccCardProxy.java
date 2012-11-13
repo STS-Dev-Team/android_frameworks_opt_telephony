@@ -142,6 +142,7 @@ public class IccCardProxy extends Handler implements IccCard {
                 mCurrentAppType = UiccController.APP_FAM_3GPP2;
             }
             updateQuietMode();
+            updateActiveRecord();
         }
     }
 
@@ -189,6 +190,23 @@ public class IccCardProxy extends Handler implements IccCard {
         }
     }
 
+    protected void updateActiveRecord() {
+        log("updateActiveRecord app type = " + mCurrentAppType + ", mIccRecords = " + mIccRecords);
+
+        if (mIccRecords == null) return;
+
+        if (mCurrentAppType == UiccController.APP_FAM_3GPP2) {
+            if (mCdmaSSM.getCdmaSubscriptionSource() == 0) {
+                log("Setting Ruim Record as active");
+                mIccRecords.recordsRequired();
+            }
+        }
+        else if (mCurrentAppType == UiccController.APP_FAM_3GPP) {
+            log("Setting SIM Record as active");
+            mIccRecords.recordsRequired();
+        }
+    }
+
     public void handleMessage(Message msg) {
         switch (msg.what) {
             case EVENT_RADIO_OFF_OR_UNAVAILABLE:
@@ -227,6 +245,7 @@ public class IccCardProxy extends Handler implements IccCard {
                 break;
             case EVENT_CDMA_SUBSCRIPTION_SOURCE_CHANGED:
                 updateQuietMode();
+                updateActiveRecord();
                 break;
             default:
                 loge("Unhandled message with number: " + msg.what);
@@ -255,6 +274,7 @@ public class IccCardProxy extends Handler implements IccCard {
                 mUiccApplication = newApp;
                 mIccRecords = newRecords;
                 registerUiccCardEvents();
+                updateActiveRecord();
             }
 
             updateExternalState();

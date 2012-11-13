@@ -67,6 +67,8 @@ public class SIMRecords extends IccRecords {
     private boolean mEonsEnabled =
             SystemProperties.getBoolean(PROPERTY_EONS_ENABLED, true);
 
+    private String mSfEuimid;
+
     // ***** Cached SIM State; cleared on channel close
 
     private boolean callForwardingEnabled;
@@ -255,6 +257,10 @@ public class SIMRecords extends IccRecords {
     @Override
     public String getIMSI() {
         return mImsi;
+    }
+
+    public String getEuimid() {
+        return mSfEuimid;
     }
 
     public String getMsisdnNumber() {
@@ -498,6 +504,20 @@ public class SIMRecords extends IccRecords {
             // just re-fetch all SIM records that we cache.
             fetchSimRecords();
         }
+    }
+
+    private class EfCsimSfEuimidLoaded implements IccRecordLoaded {
+        public String getEfName() {
+            return "EF_CSIM_SF_EUIMID";
+        }
+        public void onRecordLoaded(AsyncResult ar) {
+            onGetCsimSfEuimidDone(ar);
+        }
+    }
+
+    private void onGetCsimSfEuimidDone(AsyncResult ar) {
+        mSfEuimid = IccUtils.reverseBytesToHexString((byte[])ar.result);
+        log("CSIM SF_EUIMID is " + mSfEuimid);
     }
 
     /**
@@ -1379,7 +1399,7 @@ public class SIMRecords extends IccRecords {
             new AsyncResult(null, null, null));
     }
 
-    //***** Private methods
+    /***** Private methods *****/
 
     private void setSpnFromConfig(String carrier) {
         if (mSpnOverride.containsCarrier(carrier)) {
@@ -1490,6 +1510,20 @@ public class SIMRecords extends IccRecords {
             mFh.updateEFLinearFixed(EF_SMS, 1, ba, null,
                             obtainMessage(EVENT_MARK_SMS_READ_DONE, 1));
         }
+
+        if (mParentApp.getCard().isApplicationOnIcc(IccCardApplicationStatus.AppType.APPTYPE_CSIM)) {
+            UiccCardApplication uicccardapplication = mParentApp.getCard().getApplication(IccCardApplicationStatus.AppType.APPTYPE_CSIM);
+
+            String parentAid;
+            if (uicccardapplication != null)
+                parentAid = uicccardapplication.getAid();
+            else
+                parentAid = null;
+            log("CSIM aid is " + parentAid);
+            mFh.loadEFTransparent(EF_CSIM_SF_EUIMID, obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimSfEuimidLoaded()), parentAid);
+            recordsToLoad++;
+        }
+
         if (DBG) log("fetchSimRecords " + recordsToLoad + " requested: " + recordsRequested);
     }
 
