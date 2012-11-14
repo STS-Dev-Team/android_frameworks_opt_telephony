@@ -33,7 +33,9 @@ import android.os.RegistrantList;
 import android.os.SystemProperties;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.telephony.CellInfo;
 import android.telephony.ServiceState;
+import android.telephony.SignalStrength;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -53,6 +55,7 @@ import com.android.internal.telephony.uicc.IccCardApplicationStatus.AppType;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.*;
@@ -208,9 +211,10 @@ public abstract class PhoneBase extends Handler implements Phone {
     /**
      * Constructs a PhoneBase in normal (non-unit test) mode.
      *
-     * @param context Context object from hosting application
      * @param notifier An instance of DefaultPhoneNotifier,
+     * @param context Context object from hosting application
      * unless unit testing.
+     * @param ci the CommandsInterface
      */
     protected PhoneBase(PhoneNotifier notifier, Context context, CommandsInterface ci) {
         this(notifier, context, ci, false);
@@ -219,9 +223,10 @@ public abstract class PhoneBase extends Handler implements Phone {
     /**
      * Constructs a PhoneBase in normal (non-unit test) mode.
      *
-     * @param context Context object from hosting application
      * @param notifier An instance of DefaultPhoneNotifier,
+     * @param context Context object from hosting application
      * unless unit testing.
+     * @param ci is CommandsInterface
      * @param unitTestMode when true, prevents notifications
      * of state change events
      */
@@ -641,11 +646,6 @@ public abstract class PhoneBase extends Handler implements Phone {
         mNotifier.notifyServiceState(this);
     }
 
-    /* package */void
-    notifySignalStrength() {
-        mNotifier.notifySignalStrength(this);
-    }
-
     // Inherited documentation suffices.
     public SimulatedRadioControl getSimulatedRadioControl() {
         return mSimulatedRadioControl;
@@ -694,8 +694,8 @@ public abstract class PhoneBase extends Handler implements Phone {
 
                 if (!country.isEmpty()) {
                     try {
-                        Settings.Secure.getInt(mContext.getContentResolver(),
-                                Settings.Secure.WIFI_COUNTRY_CODE);
+                        Settings.Global.getInt(mContext.getContentResolver(),
+                                Settings.Global.WIFI_COUNTRY_CODE);
                     } catch (Settings.SettingNotFoundException e) {
                         // note this is not persisting
                         WifiManager wM = (WifiManager)
@@ -769,6 +769,14 @@ public abstract class PhoneBase extends Handler implements Phone {
         return (r != null) ? r.getRecordsLoaded() : false;
     }
 
+    /**
+     * @return all available cell information or null if none.
+     */
+    @Override
+    public List<CellInfo> getAllCellInfo() {
+        return getServiceStateTracker().getAllCellInfo();
+    }
+
     @Override
     public boolean getMessageWaitingIndicator() {
         IccRecords r = mIccRecords.get();
@@ -786,6 +794,19 @@ public abstract class PhoneBase extends Handler implements Phone {
      */
     public void queryCdmaRoamingPreference(Message response) {
         mCM.queryCdmaRoamingPreference(response);
+    }
+
+    /**
+     * Get the signal strength
+     */
+    @Override
+    public SignalStrength getSignalStrength() {
+        ServiceStateTracker sst = getServiceStateTracker();
+        if (sst == null) {
+            return new SignalStrength();
+        } else {
+            return sst.getSignalStrength();
+        }
     }
 
     /**
@@ -896,6 +917,14 @@ public abstract class PhoneBase extends Handler implements Phone {
 
     public void notifyOtaspChanged(int otaspMode) {
         mNotifier.notifyOtaspChanged(this, otaspMode);
+    }
+
+    public void notifySignalStrength() {
+        mNotifier.notifySignalStrength(this);
+    }
+
+    public void notifyCellInfo(List<CellInfo> cellInfo) {
+        mNotifier.notifyCellInfo(this, cellInfo);
     }
 
     /**

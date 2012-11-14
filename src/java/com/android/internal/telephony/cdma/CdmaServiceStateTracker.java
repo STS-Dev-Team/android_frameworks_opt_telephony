@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2012 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,9 +46,12 @@ import android.os.Registrant;
 import android.os.RegistrantList;
 import android.os.SystemClock;
 import android.os.SystemProperties;
+import android.os.UserHandle;
 import android.provider.Settings;
 import android.provider.Settings.Secure;
 import android.provider.Settings.SettingNotFoundException;
+import android.telephony.CellInfo;
+import android.telephony.CellInfoCdma;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
 import android.telephony.cdma.CdmaCellLocation;
@@ -62,6 +65,7 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.TimeZone;
 
 /**
@@ -162,15 +166,16 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
     };
 
     public CdmaServiceStateTracker(CDMAPhone phone) {
-        super(phone.getContext(), phone.mCM);
+        this(phone, new CellInfoCdma());
+    }
+
+    protected CdmaServiceStateTracker(CDMAPhone phone, CellInfo cellInfo) {
+        super(phone, phone.mCM, cellInfo);
 
         this.phone = phone;
         cr = phone.getContext().getContentResolver();
-        ss = new ServiceState();
-        newSS = new ServiceState();
         cellLoc = new CdmaCellLocation();
         newCellLoc = new CdmaCellLocation();
-        mSignalStrength = new SignalStrength();
 
         mCdmaSSM = CdmaSubscriptionSourceManager.getInstance(phone.getContext(), cm, this,
                 EVENT_CDMA_SUBSCRIPTION_SOURCE_CHANGED, null);
@@ -185,7 +190,6 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
 
         cm.registerForVoiceNetworkStateChanged(this, EVENT_NETWORK_STATE_CHANGED_CDMA, null);
         cm.setOnNITZTime(this, EVENT_NITZ_TIME, null);
-        cm.setOnSignalStrengthUpdate(this, EVENT_SIGNAL_STRENGTH_UPDATE, null);
 
         cm.registerForCdmaPrlChanged(this, EVENT_CDMA_PRL_VERSION_CHANGED, null);
         phone.registerForEriFileLoaded(this, EVENT_ERI_FILE_LOADED, null);
@@ -204,6 +208,7 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
         setSignalStrengthDefaultValues();
     }
 
+    @Override
     public void dispose() {
         checkCorrectThread();
         // Unregister for all events.
@@ -213,12 +218,12 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
         phone.unregisterForEriFileLoaded(this);
         if (mUiccApplcation != null) {mUiccApplcation.unregisterForReady(this);}
         if (mIccRecords != null) {mIccRecords.unregisterForRecordsLoaded(this);}
-        cm.unSetOnSignalStrengthUpdate(this);
         cm.unSetOnNITZTime(this);
         cr.unregisterContentObserver(mAutoTimeObserver);
         cr.unregisterContentObserver(mAutoTimeZoneObserver);
         mCdmaSSM.dispose(this);
         cm.unregisterForCdmaPrlChanged(this);
+        super.dispose();
     }
 
     @Override
@@ -251,8 +256,8 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
      */
     private void saveCdmaSubscriptionSource(int source) {
         log("Storing cdma subscription source: " + source);
-        Secure.putInt(phone.getContext().getContentResolver(),
-                Secure.CDMA_SUBSCRIPTION_MODE,
+        Settings.Global.putInt(phone.getContext().getContentResolver(),
+                Settings.Global.CDMA_SUBSCRIPTION_MODE,
                 source );
     }
 
@@ -327,7 +332,7 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
                 return;
             }
             ar = (AsyncResult) msg.obj;
-            onSignalStrengthResult(ar, phone, false);
+            onSignalStrengthResult(ar, false);
             queueNextSignalStrengthPoll();
 
             break;
@@ -446,7 +451,7 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
             // so we don't have to ask it.
             dontPollSignalStrength = true;
 
-            onSignalStrengthResult(ar, phone, false);
+            onSignalStrengthResult(ar, false);
             break;
 
         case EVENT_RUIM_RECORDS_LOADED:
@@ -541,7 +546,7 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
             intent.putExtra(TelephonyIntents.EXTRA_SPN, "");
             intent.putExtra(TelephonyIntents.EXTRA_SHOW_PLMN, showPlmn);
             intent.putExtra(TelephonyIntents.EXTRA_PLMN, plmn);
-            phone.getContext().sendStickyBroadcast(intent);
+            phone.getContext().sendStickyBroadcastAsUser(intent, UserHandle.ALL);
         }
 
         mCurPlmn = plmn;
@@ -1073,6 +1078,7 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
         if (hasLocationChanged) {
             phone.notifyLocationChanged();
         }
+        // TODO: Add CdmaCellIdenity updating, see CdmaLteServiceStateTracker.
     }
 
     /**
@@ -1340,7 +1346,8 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
                 mZoneTime    = c.getTimeInMillis();
             }
             if (DBG) {
-                log("NITZ: tzOffset=" + tzOffset + " dst=" + dst + " zone=" + zone.getID() +
+                log("NITZ: tzOffset=" + tzOffset + " dst=" + dst + " zone=" +
+                        (zone!=null ? zone.getID() : "NULL") +
                         " iso=" + iso + " mGotCountryCode=" + mGotCountryCode +
                         " mNeedFixZone=" + mNeedFixZone);
             }
@@ -1396,10 +1403,10 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
                      */
                     long gained = c.getTimeInMillis() - System.currentTimeMillis();
                     long timeSinceLastUpdate = SystemClock.elapsedRealtime() - mSavedAtTime;
-                    int nitzUpdateSpacing = Settings.Secure.getInt(cr,
-                            Settings.Secure.NITZ_UPDATE_SPACING, mNitzUpdateSpacing);
-                    int nitzUpdateDiff = Settings.Secure.getInt(cr,
-                            Settings.Secure.NITZ_UPDATE_DIFF, mNitzUpdateDiff);
+                    int nitzUpdateSpacing = Settings.Global.getInt(cr,
+                            Settings.Global.NITZ_UPDATE_SPACING, mNitzUpdateSpacing);
+                    int nitzUpdateDiff = Settings.Global.getInt(cr,
+                            Settings.Global.NITZ_UPDATE_DIFF, mNitzUpdateDiff);
 
                     if ((mSavedAtTime == 0) || (timeSinceLastUpdate > nitzUpdateSpacing)
                             || (Math.abs(gained) > nitzUpdateDiff)) {
@@ -1470,7 +1477,7 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
         Intent intent = new Intent(TelephonyIntents.ACTION_NETWORK_SET_TIMEZONE);
         intent.addFlags(Intent.FLAG_RECEIVER_REPLACE_PENDING);
         intent.putExtra("time-zone", zoneId);
-        phone.getContext().sendStickyBroadcast(intent);
+        phone.getContext().sendStickyBroadcastAsUser(intent, UserHandle.ALL);
     }
 
     /**
@@ -1485,7 +1492,7 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
         Intent intent = new Intent(TelephonyIntents.ACTION_NETWORK_SET_TIME);
         intent.addFlags(Intent.FLAG_RECEIVER_REPLACE_PENDING);
         intent.putExtra("time", time);
-        phone.getContext().sendStickyBroadcast(intent);
+        phone.getContext().sendStickyBroadcastAsUser(intent, UserHandle.ALL);
     }
 
     private void revertToNitzTime() {
@@ -1693,6 +1700,14 @@ public class CdmaServiceStateTracker extends ServiceStateTracker {
                 }
             }
         }
+    }
+
+    /**
+     * @return all available cell information or null if none.
+     */
+    @Override
+    public List<CellInfo> getAllCellInfo() {
+        return null;
     }
 
     @Override

@@ -23,6 +23,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
@@ -135,17 +136,30 @@ public final class GsmDataConnectionTracker extends DataConnectionTracker {
 
         if (DBG) {
             log("onActionIntentReconnectAlarm: mState=" + mState + " reason=" + reason +
-                    " connectionId=" + connectionId + " retryCount=" + retryCount);
+                    " connectionId=" + connectionId + " retryCount=" + retryCount + " dcac=" + dcac
+                    + " mDataConnectionAsyncChannels=" + mDataConnectionAsyncChannels);
         }
 
         if (dcac != null) {
             for (ApnContext apnContext : dcac.getApnListSync()) {
-                apnContext.setDataConnectionAc(null);
-                apnContext.setDataConnection(null);
                 apnContext.setReason(reason);
                 apnContext.setRetryCount(retryCount);
-                if (apnContext.getState() ==DctConstants.State.FAILED) {
+                DctConstants.State apnContextState = apnContext.getState();
+                if (DBG) {
+                    log("onActionIntentReconnectAlarm: apnContext state=" + apnContextState);
+                }
+                if ((apnContextState == DctConstants.State.FAILED)
+                        || (apnContextState == DctConstants.State.IDLE)) {
+                    if (DBG) {
+                        log("onActionIntentReconnectAlarm: state is FAILED|IDLE, disassociate");
+                    }
+                    apnContext.setDataConnectionAc(null);
+                    apnContext.setDataConnection(null);
                     apnContext.setState(DctConstants.State.IDLE);
+                } else {
+                    if (DBG) {
+                        log("onActionIntentReconnectAlarm: keep associated");
+                    }
                 }
                 sendMessage(obtainMessage(DctConstants.EVENT_TRY_SETUP_DATA, apnContext));
             }
@@ -678,7 +692,8 @@ public final class GsmDataConnectionTracker extends DataConnectionTracker {
                 apnContext.setState(DctConstants.State.IDLE);
             }
             if (apnContext.isReady()) {
-                if (apnContext.getState() == DctConstants.State.IDLE) {
+                if (apnContext.getState() == DctConstants.State.IDLE ||
+                        apnContext.getState() == DctConstants.State.SCANNING) {
                     apnContext.setReason(reason);
                     trySetupData(apnContext);
                 }
@@ -2161,7 +2176,20 @@ public final class GsmDataConnectionTracker extends DataConnectionTracker {
         String operator = (r != null) ? r.getOperatorNumeric() : "";
         int radioTech = mPhone.getServiceState().getRilRadioTechnology();
 
-        if (canSetPreferApn && mPreferredApn != null &&
+        // This is a workaround for a bug (7305641) where we don't failover to other
+        // suitable APNs if our preferred APN fails.  On prepaid ATT sims we need to
+        // failover to a provisioning APN, but once we've used their default data
+        // connection we are locked to it for life.  This change allows ATT devices
+        // to say they don't want to use preferred at all.
+        boolean usePreferred = true;
+        try {
+            usePreferred = ! mPhone.getContext().getResources().getBoolean(com.android.
+                    internal.R.bool.config_dontPreferApn);
+        } catch (Resources.NotFoundException e) {
+            usePreferred = true;
+        }
+
+        if (usePreferred && canSetPreferApn && mPreferredApn != null &&
                 mPreferredApn.canHandleType(requestedApnType)) {
             if (DBG) {
                 log("buildWaitingApns: Preferred APN:" + operator + ":"
@@ -2435,5 +2463,6 @@ public final class GsmDataConnectionTracker extends DataConnectionTracker {
         pw.println(" canSetPreferApn=" + canSetPreferApn);
         pw.println(" mApnObserver=" + mApnObserver);
         pw.println(" getOverallState=" + getOverallState());
+        pw.println(" mDataConnectionAsyncChannels=%s\n" + mDataConnectionAsyncChannels);
     }
 }

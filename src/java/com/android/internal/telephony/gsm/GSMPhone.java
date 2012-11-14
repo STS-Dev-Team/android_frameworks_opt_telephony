@@ -269,16 +269,12 @@ public class GSMPhone extends PhoneBase {
         return PhoneConstants.PHONE_TYPE_GSM;
     }
 
-    public SignalStrength getSignalStrength() {
-        return mSST.mSignalStrength;
+    public ServiceStateTracker getServiceStateTracker() {
+        return mSST;
     }
 
     public CallTracker getCallTracker() {
         return mCT;
-    }
-
-    public ServiceStateTracker getServiceStateTracker() {
-        return mSST;
     }
 
     public List<? extends MmiCode>

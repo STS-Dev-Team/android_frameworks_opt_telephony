@@ -26,6 +26,8 @@ import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemProperties;
+import android.os.UserHandle;
+import android.telephony.CellInfo;
 import android.telephony.CellLocation;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
@@ -212,7 +214,7 @@ public class PhoneProxy extends Handler implements Phone {
         Intent intent = new Intent(TelephonyIntents.ACTION_RADIO_TECHNOLOGY_CHANGED);
         intent.addFlags(Intent.FLAG_RECEIVER_REPLACE_PENDING);
         intent.putExtra(PhoneConstants.PHONE_NAME_KEY, mActivePhone.getPhoneName());
-        ActivityManagerNative.broadcastStickyIntent(intent, null);
+        ActivityManagerNative.broadcastStickyIntent(intent, null, UserHandle.USER_ALL);
 
     }
 
@@ -264,6 +266,14 @@ public class PhoneProxy extends Handler implements Phone {
 
     public CellLocation getCellLocation() {
         return mActivePhone.getCellLocation();
+    }
+
+    /**
+     * @return all available cell information or null if none.
+     */
+    @Override
+    public List<CellInfo> getAllCellInfo() {
+        return mActivePhone.getAllCellInfo();
     }
 
     public PhoneConstants.DataState getDataConnectionState() {

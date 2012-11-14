@@ -22,6 +22,7 @@ import android.net.LinkProperties;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemProperties;
+import android.telephony.CellInfo;
 import android.telephony.CellLocation;
 import android.telephony.PhoneStateListener;
 import android.telephony.ServiceState;
@@ -138,6 +139,7 @@ public interface Phone {
     static final int CDMA_RM_ANY         = 2;  // Roaming on Any Network, as defined in PRL
 
     // Used for CDMA subscription mode
+    static final int CDMA_SUBSCRIPTION_UNKNOWN  =-1; // Unknown
     static final int CDMA_SUBSCRIPTION_RUIM_SIM = 0; // RUIM/SIM (default)
     static final int CDMA_SUBSCRIPTION_NV       = 1; // NV -> non-volatile memory
 
@@ -177,6 +179,11 @@ public interface Phone {
      * Get the current CellLocation.
      */
     CellLocation getCellLocation();
+
+    /**
+     * @return all available cell information or null if none.
+     */
+    public List<CellInfo> getAllCellInfo();
 
     /**
      * Get the current for the default apn DataState. No change notification
