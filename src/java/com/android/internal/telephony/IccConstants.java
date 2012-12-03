@@ -42,6 +42,9 @@ public interface IccConstants {
     static final int EF_SST = 0x6f38;
     static final int EF_CFIS = 0x6FCB;
     static final int EF_IMG = 0x4f20;
+    // MOTO OEM EVENTS
+    static final int EF_SMSP = 0x6f42; // 28482
+    static final String DF_ADFISIM = "7FFF";
 
     // USIM SIM file ids from TS 31.102
     public static final int EF_PBR = 0x4F30;
@@ -68,6 +71,9 @@ public interface IccConstants {
     static final int EF_CSIM_IMSIM = 0x6F22;
     static final int EF_CSIM_CDMAHOME = 0x6F28;
     static final int EF_CSIM_EPRL = 0x6F5A;
+    // MOTO OEM EVENTS
+    static final int EF_CSIM_SF_EUIMID = 0x6F74;
+    static final int EF_IMSI_M = 0x6F22;
 
     //ISIM access
     static final int EF_IMPU = 0x6f04;
@@ -75,6 +81,13 @@ public interface IccConstants {
     static final int EF_DOMAIN = 0x6f03;
     static final int EF_IST = 0x6f07;
     static final int EF_PCSCF = 0x6f09;
+    
+    // Image Instance Data Files (for EF_IMG) from TS 31.102
+    static final int EF_IIDF1 = 0x4f01;
+    static final int EF_IIDF2 = 0x4f02;
+    static final int EF_IIDF3 = 0x4f03;
+    static final int EF_IIDF4 = 0x4f04;
+    static final int EF_IIDF5 = 0x4f05;
 
     // SMS record length from TS 51.011 10.5.3
     static public final int SMS_RECORD_LENGTH = 176;

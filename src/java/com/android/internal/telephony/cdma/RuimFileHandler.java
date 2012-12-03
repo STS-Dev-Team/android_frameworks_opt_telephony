@@ -22,12 +22,15 @@ import android.util.Log;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.IccFileHandler;
 import com.android.internal.telephony.UiccCardApplication;
+import com.android.internal.telephony.TelephonyProperties;
 
 /**
  * {@hide}
  */
 public final class RuimFileHandler extends IccFileHandler {
     static final String LOG_TAG = "CDMA";
+
+    private boolean mMotoOEM = SystemProperties.getBoolean(TelephonyProperties.PROPERTY_MOTO_OEM, true);
 
     //***** Instance Variables
 
@@ -51,6 +54,9 @@ public final class RuimFileHandler extends IccFileHandler {
 
     @Override
     protected String getEFPath(int efid) {
+        if (mMotoOEM && (efid == EF_CSIM_SF_EUIMID)) {
+            return MF_SIM + DF_CDMA;
+        }
         switch(efid) {
         case EF_SMS:
         case EF_CST:

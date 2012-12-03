@@ -17,18 +17,22 @@
 package com.android.internal.telephony.gsm;
 
 import android.os.Message;
+import android.os.SystemProperties;
 import android.util.Log;
 
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.IccConstants;
 import com.android.internal.telephony.IccFileHandler;
 import com.android.internal.telephony.UiccCardApplication;
+import com.android.internal.telephony.TelephonyProperties;
 
 /**
  * {@hide}
  */
 public final class SIMFileHandler extends IccFileHandler implements IccConstants {
     static final String LOG_TAG = "GSM";
+
+    private boolean mMotoOEM = SystemProperties.getBoolean(TelephonyProperties.PROPERTY_MOTO_OEM, true);
 
     //***** Instance Variables
 
@@ -44,6 +48,9 @@ public final class SIMFileHandler extends IccFileHandler implements IccConstants
     protected String getEFPath(int efid) {
         // TODO(): DF_GSM can be 7F20 or 7F21 to handle backward compatibility.
         // Implement this after discussion with OEMs.
+        if (mMotoOEM && (efid == EF_CSIM_SF_EUIMID)) {
+            return MF_SIM + DF_ADFISIM;
+        }
         switch(efid) {
         case EF_SMS:
             return MF_SIM + DF_TELECOM;
